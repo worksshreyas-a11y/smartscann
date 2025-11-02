@@ -1,22 +1,15 @@
 import streamlit as st
-
-# ---- Safe OpenCV import for Streamlit Cloud ----
-try:
-    import cv2
-except Exception as e:
-    st.error("⚠️ OpenCV import failed: " + str(e))
-    st.stop()
-
+import cv2
 import numpy as np
 from PIL import Image
 from ultralytics import YOLO
+from collections import Counter
 import pandas as pd
 from matplotlib import pyplot as plt
 from streamlit_image_comparison import image_comparison
 import wikipedia
 from wikipedia.exceptions import DisambiguationError, PageError
 import time
-
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="SmartScan - AI Object Analyzer", layout="wide")
@@ -135,6 +128,8 @@ with st.sidebar:
     st.info("Lower confidence → more detections. Higher confidence → more precision.")
 
 # --- FILE UPLOAD ---
+obj_names = []  # ✅ Prevent NameError
+
 uploaded_file = st.file_uploader("📤 Upload an image", type=["jpg", "jpeg", "png"])
 
 if uploaded_file:
@@ -151,10 +146,15 @@ if uploaded_file:
     res_rgb = cv2.cvtColor(res_img, cv2.COLOR_BGR2RGB)
 
     names = model.names
-    confs = result.boxes.conf.cpu().numpy()
-    cls_ids = result.boxes.cls.cpu().numpy().astype(int)
-    xyxy = result.boxes.xyxy.cpu().numpy().astype(int)
-    detected_objects = [(names[cls_ids[i]], confs[i], xyxy[i]) for i in range(len(cls_ids))]
+
+    # --- Handle empty detection safely ---
+    if result.boxes and len(result.boxes) > 0:
+        confs = result.boxes.conf.cpu().numpy()
+        cls_ids = result.boxes.cls.cpu().numpy().astype(int)
+        xyxy = result.boxes.xyxy.cpu().numpy().astype(int)
+        detected_objects = [(names[cls_ids[i]], confs[i], xyxy[i]) for i in range(len(cls_ids))]
+    else:
+        detected_objects = []
 
     # --- TABS ---
     tab1, tab2, tab3 = st.tabs(["📸 Detection Results", "📊 Analysis & Charts", "📘 Knowledge Base"])
@@ -169,7 +169,11 @@ if uploaded_file:
             label2="SmartScan Detection",
             width=800
         )
-        st.success(f"✅ {len(detected_objects)} objects detected successfully in {process_time:.2f} seconds.")
+
+        if detected_objects:
+            st.success(f"✅ {len(detected_objects)} objects detected successfully in {process_time:.2f} seconds.")
+        else:
+            st.warning("⚠️ No objects were detected. Try adjusting confidence or using a clearer image.")
 
     # --- TAB 2 ---
     with tab2:
@@ -217,6 +221,8 @@ if uploaded_file:
                 st.write("This table lists each detected object with its confidence score and bounding box coordinates for detailed positional analysis.")
             st.download_button("⬇️ Download Detection Report", report_data.to_csv(index=False).encode('utf-8'),
                                file_name="SmartScan_Report.csv", mime="text/csv")
+        else:
+            st.info("No detected objects to analyze. Upload a new image or lower the confidence threshold.")
 
     # --- TAB 3 ---
     with tab3:
@@ -234,13 +240,14 @@ if uploaded_file:
                     st.write(f"SmartScan couldn't find Wikipedia info for '{obj.title()}'.")
                     st.caption("💡 Source: SmartScan Knowledge Engine")
 
-            # --- RESTORED KNOWLEDGE NOTE (Old Blue Design) ---
             st.markdown("""
             <div class="knowledge-note">
             🧠 <b>Note:</b> Some detected objects may not appear on Wikipedia or may show limited/inaccurate descriptions.  
             SmartScan relies on open-source knowledge and pretrained datasets, which may cause occasional mismatches.
             </div>
             """, unsafe_allow_html=True)
+        else:
+            st.info("No objects detected — knowledge data unavailable. Upload an image first.")
 
 # --- FOOTER ---
 st.markdown("""
@@ -248,4 +255,3 @@ st.markdown("""
 Developed by <b>Shreyas Shree</b> | SmartScan © 2025 | AI Object Recognition & Knowledge Platform
 </footer>
 """, unsafe_allow_html=True)
-
