@@ -1,0 +1,8 @@
+streamlit
+opencv-python-headless
+ultralytics
+pillow
+matplotlib
+pandas
+wikipedia
+streamlit-image-comparison
