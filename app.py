@@ -1,15 +1,22 @@
 import streamlit as st
-import cv2
+
+# ---- Safe OpenCV import for Streamlit Cloud ----
+try:
+    import cv2
+except Exception as e:
+    st.error("⚠️ OpenCV import failed: " + str(e))
+    st.stop()
+
 import numpy as np
 from PIL import Image
 from ultralytics import YOLO
-from collections import Counter
 import pandas as pd
 from matplotlib import pyplot as plt
 from streamlit_image_comparison import image_comparison
 import wikipedia
 from wikipedia.exceptions import DisambiguationError, PageError
 import time
+
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="SmartScan - AI Object Analyzer", layout="wide")
@@ -241,3 +248,4 @@ st.markdown("""
 Developed by <b>Shreyas Shree</b> | SmartScan © 2025 | AI Object Recognition & Knowledge Platform
 </footer>
 """, unsafe_allow_html=True)
+
